@@ -5,6 +5,32 @@ A production-ready Android project template with **Clean Architecture**, **verti
 ## Architecture
 
 ```
+┌─────────────────────────────────────────────────────┐
+│                        app/                         │
+│   Application, MainActivity, NavHost, Room DB, DI   │
+└──────────┬──────────────┬───────────────┬───────────┘
+           │              │               │
+           ▼              ▼               ▼
+┌──────────────┐  ┌──────────────┐  ┌─────────────────┐
+│   feature/   │  │   shared/    │  │     core/        │
+│              │  │              │  │                   │
+│  auth        │  │  auth        │  │  auth (tokens)    │
+│  onboarding  │  │  preference  │  │  network (http)   │
+│  notes       │  │  user        │  │  ui (theme)       │
+│  profile     │  │              │  │  analytics (stub)  │
+│  settings    │  │              │  │  notification (stub)│
+│              │  │              │  │  util              │
+└──────┬───────┘  └──────┬───────┘  └───────────────────┘
+       │                 │                    ▲
+       │                 │                    │
+       └─────────────────┴────────────────────┘
+              features & shared depend on core
+              (core depends on nothing)
+```
+
+### Package Structure
+
+```
 com.example.app/
 ├── app/          ← Entry point: Application, MainActivity, NavHost, Room DB
 ├── core/         ← Infrastructure: auth, network, theme, utilities

@@ -19,6 +19,11 @@ NEW_APP_NAME="$2"
 OLD_PACKAGE="com.example.app"
 OLD_APP_NAME="MyApp"
 
+if [ "$NEW_PACKAGE" = "$OLD_PACKAGE" ]; then
+    echo "Error: New package is the same as the template package."
+    exit 1
+fi
+
 # Convert package to path (com.example.app -> com/example/app)
 OLD_PATH=$(echo "$OLD_PACKAGE" | tr '.' '/')
 NEW_PATH=$(echo "$NEW_PACKAGE" | tr '.' '/')
@@ -30,38 +35,38 @@ echo "  New package: $NEW_PACKAGE"
 echo "  App name:    $NEW_APP_NAME"
 echo ""
 
-# 1. Rename package in all Kotlin files
-echo "[1/6] Renaming package in Kotlin files..."
-find app/src -name "*.kt" -exec sed -i '' "s/$OLD_PACKAGE/$NEW_PACKAGE/g" {} +
-
-# 2. Rename package in Gradle files
-echo "[2/6] Updating Gradle configuration..."
-sed -i '' "s/$OLD_PACKAGE/$NEW_PACKAGE/g" app/build.gradle.kts
-sed -i '' "s/$OLD_PACKAGE/$NEW_PACKAGE/g" app/proguard-rules.pro
-
-# 3. Rename package in XML files
-echo "[3/6] Updating Android resources..."
-find app/src -name "*.xml" -exec sed -i '' "s/$OLD_PACKAGE/$NEW_PACKAGE/g" {} +
-
-# 4. Update app name
-echo "[4/6] Updating app name..."
-sed -i '' "s|$OLD_APP_NAME|$NEW_APP_NAME|g" app/src/main/res/values/strings.xml
-sed -i '' "s|$OLD_APP_NAME|$NEW_APP_NAME|g" settings.gradle.kts
-
-# 5. Rename directory structure
-echo "[5/6] Restructuring source directories..."
+# 1. Rename directory structure FIRST (before sed, so paths exist)
+echo "[1/6] Restructuring source directories..."
 for SRC_SET in main test androidTest; do
     SRC_DIR="app/src/$SRC_SET/java"
     if [ -d "$SRC_DIR/$OLD_PATH" ]; then
         mkdir -p "$SRC_DIR/$NEW_PATH"
-        # Move contents, not the directory itself
-        if [ "$(ls -A "$SRC_DIR/$OLD_PATH" 2>/dev/null)" ]; then
-            cp -R "$SRC_DIR/$OLD_PATH/"* "$SRC_DIR/$NEW_PATH/" 2>/dev/null || true
-        fi
-        # Remove old package directories (walk up and remove empty dirs)
-        rm -rf "$SRC_DIR/$(echo "$OLD_PACKAGE" | cut -d'.' -f1)"
+        # Move contents to new path
+        cp -R "$SRC_DIR/$OLD_PATH/"* "$SRC_DIR/$NEW_PATH/" 2>/dev/null || true
+        # Remove only the old leaf directory, then prune empty parents
+        rm -rf "$SRC_DIR/$OLD_PATH"
+        # Clean up empty parent dirs (e.g., com/example/ if now empty)
+        find "$SRC_DIR" -type d -empty -delete 2>/dev/null || true
     fi
 done
+
+# 2. Rename package in all Kotlin files
+echo "[2/6] Renaming package in Kotlin files..."
+find app/src -name "*.kt" -exec sed -i '' "s/$OLD_PACKAGE/$NEW_PACKAGE/g" {} +
+
+# 3. Rename package in Gradle files
+echo "[3/6] Updating Gradle configuration..."
+sed -i '' "s/$OLD_PACKAGE/$NEW_PACKAGE/g" app/build.gradle.kts
+sed -i '' "s/$OLD_PACKAGE/$NEW_PACKAGE/g" app/proguard-rules.pro
+
+# 4. Rename package in XML files
+echo "[4/6] Updating Android resources..."
+find app/src -name "*.xml" -exec sed -i '' "s/$OLD_PACKAGE/$NEW_PACKAGE/g" {} +
+
+# 5. Update app name
+echo "[5/6] Updating app name..."
+sed -i '' "s|$OLD_APP_NAME|$NEW_APP_NAME|g" app/src/main/res/values/strings.xml
+sed -i '' "s|$OLD_APP_NAME|$NEW_APP_NAME|g" settings.gradle.kts
 
 # 6. Update theme name in XML
 echo "[6/6] Updating theme references..."
